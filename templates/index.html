@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Server Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0a0e14;
+            --bg-secondary: #111820;
+            --bg-tertiary: #1a2332;
+            --bg-card: #151d28;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-yellow: #d29922;
+            --accent-purple: #a371f7;
+            --border: #30363d;
+            --shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-purple));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+        
+        .logo h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--text-primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .uptime-badge {
+            background: var(--bg-tertiary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .uptime-badge span {
+            color: var(--accent-green);
+            font-weight: 500;
+        }
+        
+        .terminal-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+        
+        .terminal-btn:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+        
+        .main {
+            padding: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .system-info {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .info-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .info-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        
+        .info-card .label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+        
+        .info-card .value {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .card-body {
+            padding: 1.25rem;
+        }
+        
+        .metric-bar {
+            margin-bottom: 1rem;
+        }
+        
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .metric-label {
+            color: var(--text-secondary);
+        }
+        
+        .metric-value {
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .progress-fill.cpu { background: linear-gradient(90deg, var(--accent), var(--accent-purple)); }
+        .progress-fill.memory { background: linear-gradient(90deg, var(--accent-green), #2ea043); }
+        .progress-fill.disk { background: linear-gradient(90deg, var(--accent-yellow), #e3b341); }
+        .progress-fill.network { background: linear-gradient(90deg, var(--accent-red), #da3633); }
+        
+        .cores-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .core-item {
+            background: var(--bg-tertiary);
+            padding: 0.5rem;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .core-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        
+        .core-value {
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .disk-list, .network-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .disk-item, .network-item {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .disk-item:last-child, .network-item:last-child {
+            border-bottom: none;
+        }
+        
+        .disk-name {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .process-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .process-table th {
+            text-align: left;
+            padding: 0.75rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .process-table td {
+            padding: 0.75rem;
+            font-size: 0.85rem;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .process-table tr:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .process-name {
+            font-family: 'JetBrains Mono', monospace;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .process-pid {
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .badge {
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+        
+        .badge-running { background: rgba(63, 185, 80, 0.2); color: var(--accent-green); }
+        .badge-sleeping { background: rgba(139, 148, 158, 0.2); color: var(--text-secondary); }
+        
+        .temp-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 1rem;
+        }
+        
+        .temp-item {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .temp-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .temp-value.hot { color: var(--accent-red); }
+        .temp-value.warm { color: var(--accent-yellow); }
+        .temp-value.cool { color: var(--accent-green); }
+        
+        .temp-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+        
+        /* Terminal Modal */
+        .terminal-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .terminal-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .terminal-container {
+            width: 90%;
+            height: 80%;
+            background: var(--bg-primary);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .terminal-header {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .terminal-title {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            line-height: 1;
+        }
+        
+        .close-btn:hover {
+            color: var(--accent-red);
+        }
+        
+        #terminal {
+            flex: 1;
+            padding: 1rem;
+            background: #0a0e14;
+        }
+        
+        .command-input {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+        }
+        
+        .command-input input {
+            flex: 1;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .command-input input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .command-input button {
+            background: var(--accent);
+            border: none;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .command-input button:hover {
+            opacity: 0.9;
+        }
+        
+        .output-log {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        .output-log.show {
+            display: block;
+        }
+        
+        @media (max-width: 1024px) {
+            .system-info {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .system-info {
+                grid-template-columns: 1fr;
+            }
+            .header {
+                padding: 1rem;
+            }
+            .main {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">🖥️</div>
+            <h1>Server Dashboard</h1>
+        </div>
+        <div class="header-right">
+            <div class="uptime-badge">
+                Uptime: <span id="uptime">-</span>
+            </div>
+            <button class="terminal-btn" onclick="openTerminal()">
+                ⌨️ Terminal
+            </button>
+        </div>
+    </header>
+    
+    <main class="main">
+        <div class="system-info">
+            <div class="info-card">
+                <div class="label">Hostname</div>
+                <div class="value" id="hostname">-</div>
+            </div>
+            <div class="info-card">
+                <div class="label">Operating System</div>
+                <div class="value" id="os">-</div>
+            </div>
+            <div class="info-card">
+                <div class="label">Architecture</div>
+                <div class="value" id="arch">-</div>
+            </div>
+            <div class="info-card">
+                <div class="label">Python Version</div>
+                <div class="value" id="python">-</div>
+            </div>
+        </div>
+        
+        <div class="metrics-grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        ⚡ CPU
+                    </div>
+                    <span id="cpu-total" style="font-weight: 600; font-family: 'JetBrains Mono', monospace;">-</span>
+                </div>
+                <div class="card-body">
+                    <div class="metric-bar">
+                        <div class="metric-header">
+                            <span class="metric-label">Usage</span>
+                            <span class="metric-value" id="cpu-percent">-</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill cpu" id="cpu-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="metric-header" style="margin-top: 1rem;">
+                        <span class="metric-label">Load Average</span>
+                        <span class="metric-value" id="load-avg">-</span>
+                    </div>
+                    <div class="cores-grid" id="cores-grid"></div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        🧠 Memory
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="metric-bar">
+                        <div class="metric-header">
+                            <span class="metric-label">RAM</span>
+                            <span class="metric-value" id="ram-usage">-</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill memory" id="ram-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="metric-bar">
+                        <div class="metric-header">
+                            <span class="metric-label">Swap</span>
+                            <span class="metric-value" id="swap-usage">-</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill memory" id="swap-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        💾 Disk
+                    </div>
+                </div>
+                <div class="card-body disk-list" id="disk-list"></div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        🌐 Network
+                    </div>
+                </div>
+                <div class="card-body network-list" id="network-list"></div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        🌡️ Temperature
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="temp-grid" id="temp-grid">
+                        <div class="temp-item">
+                            <div class="temp-value cool">-</div>
+                            <div class="temp-label">No sensors</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        🔋 Battery
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="battery-status">
+                        <div class="temp-item">
+                            <div class="temp-value cool">-</div>
+                            <div class="temp-label">No battery</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    📋 Top Processes
+                </div>
+            </div>
+            <div class="card-body" style="padding: 0; overflow-x: auto;">
+                <table class="process-table">
+                    <thead>
+                        <tr>
+                            <th>PID</th>
+                            <th>Name</th>
+                            <th>User</th>
+                            <th>CPU %</th>
+                            <th>Memory %</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="process-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Terminal Modal -->
+    <div class="terminal-modal" id="terminal-modal">
+        <div class="terminal-container">
+            <div class="terminal-header">
+                <div class="terminal-title">
+                    ⌨️ Interactive Terminal
+                </div>
+                <button class="close-btn" onclick="closeTerminal()">×</button>
+            </div>
+            <div id="terminal"></div>
+            <div class="command-input">
+                <input type="text" id="cmd-input" placeholder="Enter command..." onkeypress="handleCommand(event)">
+                <button onclick="executeCommand()">Run</button>
+            </div>
+            <div class="output-log" id="output-log"></div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <script>
+        let term;
+        let fitAddon;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSystemInfo();
+            loadMetrics();
+            setInterval(loadMetrics, 2000);
+        });
+        
+        async function loadSystemInfo() {
+            try {
+                const res = await fetch('/api/system');
+                const data = await res.json();
+                document.getElementById('hostname').textContent = data.hostname || '-';
+                document.getElementById('os').textContent = data.os || '-';
+                document.getElementById('arch').textContent = data.arch || '-';
+                document.getElementById('python').textContent = data.python_version || '-';
+                document.getElementById('uptime').textContent = data.uptime || '-';
+            } catch (e) {
+                console.error('Failed to load system info:', e);
+            }
+        }
+        
+        async function loadMetrics() {
+            try {
+                const res = await fetch('/api/all');
+                const data = await res.json();
+                
+                // CPU
+                const cpu = data.cpu;
+                document.getElementById('cpu-percent').textContent = cpu.usage_total + '%';
+                document.getElementById('cpu-total').textContent = cpu.usage_total + '%';
+                document.getElementById('cpu-bar').style.width = cpu.usage_total + '%';
+                document.getElementById('load-avg').textContent = cpu.load_avg.join(' / ');
+                
+                // Cores
+                const coresGrid = document.getElementById('cores-grid');
+                coresGrid.innerHTML = cpu.usage_per_core.map((c, i) => `
+                    <div class="core-item">
+                        <div class="core-label">Core ${i}</div>
+                        <div class="core-value" style="color: ${c > 80 ? 'var(--accent-red)' : c > 50 ? 'var(--accent-yellow)' : 'var(--accent-green)'}">${c}%</div>
+                    </div>
+                `).join('');
+                
+                // Memory
+                const mem = data.memory;
+                document.getElementById('ram-usage').textContent = `${mem.ram_used}GB / ${mem.ram_total}GB (${mem.ram_percent}%)`;
+                document.getElementById('ram-bar').style.width = mem.ram_percent + '%';
+                document.getElementById('swap-usage').textContent = `${mem.swap_used}GB / ${mem.swap_total}GB (${mem.swap_percent}%)`;
+                document.getElementById('swap-bar').style.width = mem.swap_percent + '%';
+                
+                // Disk
+                const diskList = document.getElementById('disk-list');
+                diskList.innerHTML = data.disk.map(d => `
+                    <div class="disk-item">
+                        <div class="disk-name">
+                            <span>${d.mountpoint}</span>
+                            <span>${d.used}GB / ${d.total}GB</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill disk" style="width: ${d.percent}%"></div>
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                            ${d.device} • ${d.fstype} • ${d.free}GB free
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Network
+                const net = data.network;
+                const netList = document.getElementById('network-list');
+                const formatBytes = (b) => {
+                    if (b < 1024) return b + ' B';
+                    if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+                    if (b < 1024*1024*1024) return (b/1024/1024).toFixed(1) + ' MB';
+                    return (b/1024/1024/1024).toFixed(2) + ' GB';
+                };
+                netList.innerHTML = Object.entries(net.interfaces).map(([name, iface]) => `
+                    <div class="network-item">
+                        <div class="disk-name">
+                            <span>${name}</span>
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                            ↑ ${formatBytes(iface.bytes_sent)} / ↓ ${formatBytes(iface.bytes_recv)}
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Processes
+                const procList = document.getElementById('process-list');
+                procList.innerHTML = data.processes.slice(0, 20).map(p => `
+                    <tr>
+                        <td class="process-pid">${p.pid}</td>
+                        <td class="process-name">${p.name}</td>
+                        <td>${p.user}</td>
+                        <td style="color: ${p.cpu > 50 ? 'var(--accent-red)' : p.cpu > 20 ? 'var(--accent-yellow)' : 'var(--text-primary)'}">${p.cpu}%</td>
+                        <td>${p.memory}%</td>
+                        <td><span class="badge badge-${p.status === 'running' ? 'running' : 'sleeping'}">${p.status}</span></td>
+                    </tr>
+                `).join('');
+                
+                // Temperature
+                const tempGrid = document.getElementById('temp-grid');
+                const temps = data.temperature;
+                if (Object.keys(temps).length > 0) {
+                    tempGrid.innerHTML = Object.entries(temps).map(([name, temp]) => `
+                        <div class="temp-item">
+                            <div class="temp-value ${temp > 80 ? 'hot' : temp > 60 ? 'warm' : 'cool'}">${temp}°C</div>
+                            <div class="temp-label">${name}</div>
+                        </div>
+                    `).join('');
+                }
+                
+                // Battery
+                const battery = data.battery;
+                const batteryStatus = document.getElementById('battery-status');
+                if (battery) {
+                    batteryStatus.innerHTML = `
+                        <div class="temp-item">
+                            <div class="temp-value ${battery.percent < 20 ? 'hot' : battery.percent < 50 ? 'warm' : 'cool'}">${battery.percent}%</div>
+                            <div class="temp-label">${battery.charging ? 'Charging' : 'Discharging'}</div>
+                        </div>
+                    `;
+                }
+                
+            } catch (e) {
+                console.error('Failed to load metrics:', e);
+            }
+        }
+        
+        // Terminal
+        function openTerminal() {
+            const modal = document.getElementById('terminal-modal');
+            modal.classList.add('active');
+            
+            if (!term) {
+                term = new Terminal({
+                    cursorBlink: true,
+                    fontSize: 14,
+                    fontFamily: 'JetBrains Mono, monospace',
+                    theme: {
+                        background: '#0a0e14',
+                        foreground: '#e6edf3',
+                        cursor: '#58a6ff',
+                        selection: 'rgba(88, 166, 255, 0.3)'
+                    }
+                });
+                fitAddon = new FitAddon.FitAddon();
+                term.loadAddon(fitAddon);
+                term.open(document.getElementById('terminal'));
+                fitAddon.fit();
+                
+                term.writeln('\x1b[36m╔══════════════════════════════════════════╗\x1b[0m');
+                term.writeln('\x1b[36m║\x1b[0m   \x1b[1;37mWelcome to Server Terminal\x1b[0m             \x1b[36m║\x1b[0m');
+                term.writeln('\x1b[36m║\x1b[0m   Type commands and press Enter          \x1b[36m║\x1b[0m');
+                term.writeln('\x1b[36m╚══════════════════════════════════════════╝\x1b[0m');
+                term.writeln('');
+                
+                term.onData(async (data) => {
+                    if (data === '\r') { // Enter
+                        const cmd = currentCmd.trim();
+                        if (cmd) {
+                            term.writeln('\x1b[32m$\x1b[0m ' + cmd);
+                            await runTerminalCommand(cmd);
+                        }
+                        currentCmd = '';
+                        prompt();
+                    } else if (data === '\x7f') { // Backspace
+                        if (currentCmd.length > 0) {
+                            currentCmd = currentCmd.slice(0, -1);
+                            term.write('\b \b');
+                        }
+                    } else if (data === '\x03') { // Ctrl+C
+                        term.writeln('\x1b[33m^C\x1b[0m');
+                        currentCmd = '';
+                        prompt();
+                    } else {
+                        currentCmd += data;
+                        term.write(data);
+                    }
+                });
+            }
+            
+            setTimeout(() => fitAddon && fitAddon.fit(), 100);
+            prompt();
+        }
+        
+        let currentCmd = '';
+        
+        function prompt() {
+            term.write('\r\n\x1b[32m$\x1b[0m ');
+        }
+        
+        async function runTerminalCommand(cmd) {
+            try {
+                const res = await fetch('/api/command', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({command: cmd})
+                });
+                const data = await res.json();
+                term.writeln(data.output || '');
+            } catch (e) {
+                term.writeln('\x1b[31mError:\x1b[0m ' + e.message);
+            }
+        }
+        
+        function closeTerminal() {
+            document.getElementById('terminal-modal').classList.remove('active');
+        }
+        
+        // Command input (alternative to terminal)
+        function handleCommand(e) {
+            if (e.key === 'Enter') {
+                executeCommand();
+            }
+        }
+        
+        async function executeCommand() {
+            const input = document.getElementById('cmd-input');
+            const cmd = input.value.trim();
+            if (!cmd) return;
+            
+            const outputLog = document.getElementById('output-log');
+            outputLog.classList.add('show');
+            outputLog.textContent = 'Executing: ' + cmd + '\n';
+            
+            try {
+                const res = await fetch('/api/command', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({command: cmd})
+                });
+                const data = await res.json();
+                outputLog.textContent += data.output || 'No output';
+            } catch (e) {
+                outputLog.textContent += 'Error: ' + e.message;
+            }
+            
+            input.value = '';
+            outputLog.scrollTop = outputLog.scrollHeight;
+        }
+        
+        // Close modal on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeTerminal();
+            }
+        });
+    </script>
+</body>
+</html>
